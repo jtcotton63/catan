@@ -7,10 +7,8 @@ import (
 	"github.com/jtcotton63/catan/state"
 )
 
-func new(players []*model.Player) (*game, error) {
-	id := uuid.New()
-
-	model, err := model.New(players)
+func newGame(initial *model.InitialConfig) (*game, error) {
+	model, err := model.New(initial)
 	if err != nil {
 		return nil, err
 	}
@@ -18,7 +16,7 @@ func new(players []*model.Player) (*game, error) {
 	initialState := state.NewRolling()
 
 	g := game{
-		ID:    id,
+		ID:    initial.ID,
 		model: model,
 		state: initialState,
 	}

@@ -3,6 +3,7 @@ package game
 import (
 	"github.com/google/uuid"
 	"github.com/jtcotton63/catan/event"
+	"github.com/jtcotton63/catan/model"
 	"github.com/pkg/errors"
 )
 
@@ -12,22 +13,84 @@ type Service struct {
 	publisher publisher
 }
 
-// TODO Test this once the db and publisher can be mocked
-func (s *Service) load(id uuid.UUID) (*game, error) {
-	game, err := s.db.getInitialState(id)
+// TODO CreateOptions (params that the user specifies
+// when the game is created)
+// TODO Save initial board layout as part of initial config
+func (s *Service) Create() (*model.InitialConfig, error) {
+	initial, err := model.NewInitialConfig()
 	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to load initial state for game %s", id)
+		errors.Wrap(err, "An unexpected error occured while instantiating the initial game state")
 	}
 
-	events, err := s.db.getEvents(id)
+	initial, err = s.db.saveInitialState(initial)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to load events for game %s", id)
+		errors.Wrap(err, "An unexpected error occured while saving the initial state to the database")
+	}
+
+	return initial, nil
+}
+
+func (s *Service) AddPlayer(gameID uuid.UUID, player *model.Player) error {
+	initial, err := s.db.getInitialState(gameID)
+	if err != nil {
+		return errors.Wrapf(err, "An unexpected error occurred while trying to add player %s to game %s", player.ID, gameID)
+	}
+
+	initial.Players = append(initial.Players, player)
+	_, err = s.db.saveInitialState(initial)
+	if err != nil {
+		return errors.Wrapf(err, "An unexpected error occurred while trying to save player %s to game %s", player.ID, gameID)
+	}
+	return nil
+}
+
+func (s *Service) Start(gameID uuid.UUID) error {
+	initial, err := s.db.getInitialState(gameID)
+	if err != nil {
+		return errors.Wrapf(err, "Unable to retrieve the initial state for game %s because of an error", gameID)
+	}
+
+	if initial == nil {
+		return errors.Errorf("Game %s doesn't exist", gameID)
+	}
+
+	// Verify that everything is in place to start the game
+	numPlayers := len(initial.Players)
+	if numPlayers < 2 {
+		return errors.Errorf("Game %s can't be started because it only has %d players in it", gameID, numPlayers)
+	}
+
+	// Flip the started bool
+	initial.Started = false
+	_, err = s.db.saveInitialState(initial)
+	if err != nil {
+		return errors.Wrapf(err, "An unexpected error occurred while trying to update game %s as started in the database", gameID)
+	}
+
+	return nil
+}
+
+// TODO Test this once the db and publisher can be mocked
+func (s *Service) load(gameID uuid.UUID) (*game, error) {
+	initial, err := s.db.getInitialState(gameID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Unable to load initial state for game %s", gameID)
+	}
+
+	game, err := newGame(initial)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Unable to instantiate the model for game %s", gameID)
+	}
+
+	events, err := s.db.getEvents(gameID)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Unable to load events for game %s", gameID)
 	}
 
 	for _, e := range events {
 		nextState, nextModel, err := game.next(e.Event())
 		if err != nil {
-			return nil, errors.Wrapf(err, "Unable to load game %s; event %s could not be applied", id, e.ID())
+			return nil, errors.Wrapf(err, "Unable to load game %s; event %s could not be applied", gameID, e.ID())
 		}
 
 		game.state = nextState

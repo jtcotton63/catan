@@ -5,7 +5,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func New(players []*Player) (*Game, error) {
+func New(initial *InitialConfig) (*Game, error) {
 	resources := ResourceCardDeck{
 		Brick: 19,
 		Ore:   19,
@@ -23,8 +23,8 @@ func New(players []*Player) (*Game, error) {
 	}
 
 	g := Game{
-		Players:      players,
-		Active:       players[0],
+		Players:      initial.Players,
+		Active:       initial.Players[0],
 		ResourceBank: &resources,
 		DevCardBank:  &devCards,
 	}

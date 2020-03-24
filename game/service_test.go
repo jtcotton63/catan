@@ -1,13 +1,10 @@
 package game_test
 
-// import (
-// 	"testing"
+import (
+	"github.com/google/wire"
+)
 
-// 	"github.com/pkg/errors"
-
-// 	"github.com/google/uuid"
-// 	"github.com/jtcotton63/catan/model"
-// )
+var inMemorySet = wire.NewSet()
 
 // func TestGameplay(t *testing.T) {
 
