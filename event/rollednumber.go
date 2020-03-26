@@ -6,12 +6,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-func NewRolledNumber(gameID uuid.UUID, playerID uuid.UUID, roll uint) (*RolledNumberEvent, error) {
+func NewRolledNumber(gameID uuid.UUID, playerID uuid.UUID, roll uint) (*RolledNumber, error) {
 	if roll < 2 || roll > 12 {
 		return nil, errors.Errorf("Invalid roll value %d", roll)
 	}
 
-	r := RolledNumberEvent{
+	r := RolledNumber{
 		gameID:   gameID,
 		playerID: playerID,
 		roll:     roll,
@@ -20,24 +20,24 @@ func NewRolledNumber(gameID uuid.UUID, playerID uuid.UUID, roll uint) (*RolledNu
 	return &r, nil
 }
 
-type RolledNumberEvent struct {
+type RolledNumber struct {
 	gameID   uuid.UUID
 	playerID uuid.UUID
 	roll     uint
 }
 
-func (r *RolledNumberEvent) GameID() uuid.UUID {
+func (r *RolledNumber) GameID() uuid.UUID {
 	return r.gameID
 }
 
-func (r *RolledNumberEvent) PlayerID() uuid.UUID {
+func (r *RolledNumber) PlayerID() uuid.UUID {
 	return r.playerID
 }
 
-func (r *RolledNumberEvent) Type() eventtype.T {
+func (r *RolledNumber) Type() eventtype.T {
 	return eventtype.RolledNumber
 }
 
-func (r *RolledNumberEvent) Roll() uint {
+func (r *RolledNumber) Roll() uint {
 	return r.roll
 }

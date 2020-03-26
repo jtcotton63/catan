@@ -23,21 +23,25 @@ func New(initial *InitialConfig) (*Game, error) {
 	}
 
 	g := Game{
-		Players:      initial.Players,
-		Active:       initial.Players[0],
-		ResourceBank: &resources,
-		DevCardBank:  &devCards,
+		Players:         initial.Players,
+		activePlayerIdx: 0,
+		ResourceBank:    &resources,
+		DevCardBank:     &devCards,
 	}
 
 	return &g, nil
 }
 
 type Game struct {
-	Players []*Player
-	Active  *Player
+	Players         []*Player
+	activePlayerIdx uint
 	// TODO Board
 	ResourceBank *ResourceCardDeck
 	DevCardBank  *DevCardDeck
+}
+
+func (g *Game) GetActivePlayer() *Player {
+	return g.Players[g.activePlayerIdx]
 }
 
 func (g *Game) GetPlayer(id uuid.UUID) (*Player, error) {
@@ -48,4 +52,10 @@ func (g *Game) GetPlayer(id uuid.UUID) (*Player, error) {
 	}
 
 	return nil, errors.Errorf("Unable to find player %s", id)
+}
+
+func (g *Game) IncrementActivePlayer() error {
+	g.activePlayerIdx++
+	g.activePlayerIdx = g.activePlayerIdx % uint(len(g.Players))
+	return nil
 }

@@ -2,15 +2,24 @@ package game
 
 import (
 	"github.com/google/uuid"
+	"github.com/jtcotton63/catan/data"
 	"github.com/jtcotton63/catan/event"
+	"github.com/jtcotton63/catan/message"
 	"github.com/jtcotton63/catan/model"
 	"github.com/pkg/errors"
 )
 
-// TODO New function
+func newService(publisher message.Publisher, store data.Store) (*Service, error) {
+	s := Service{
+		publisher: publisher,
+		store:     store,
+	}
+	return &s, nil
+}
+
 type Service struct {
-	db        db
-	publisher publisher
+	publisher message.Publisher
+	store     data.Store
 }
 
 // TODO CreateOptions (params that the user specifies
@@ -22,7 +31,7 @@ func (s *Service) Create() (*model.InitialConfig, error) {
 		errors.Wrap(err, "An unexpected error occured while instantiating the initial game state")
 	}
 
-	initial, err = s.db.saveInitialState(initial)
+	initial, err = s.store.SaveInitialState(initial)
 	if err != nil {
 		errors.Wrap(err, "An unexpected error occured while saving the initial state to the database")
 	}
@@ -31,13 +40,13 @@ func (s *Service) Create() (*model.InitialConfig, error) {
 }
 
 func (s *Service) AddPlayer(gameID uuid.UUID, player *model.Player) error {
-	initial, err := s.db.getInitialState(gameID)
+	initial, err := s.store.GetInitialState(gameID)
 	if err != nil {
 		return errors.Wrapf(err, "An unexpected error occurred while trying to add player %s to game %s", player.ID, gameID)
 	}
 
 	initial.Players = append(initial.Players, player)
-	_, err = s.db.saveInitialState(initial)
+	_, err = s.store.SaveInitialState(initial)
 	if err != nil {
 		return errors.Wrapf(err, "An unexpected error occurred while trying to save player %s to game %s", player.ID, gameID)
 	}
@@ -45,7 +54,7 @@ func (s *Service) AddPlayer(gameID uuid.UUID, player *model.Player) error {
 }
 
 func (s *Service) Start(gameID uuid.UUID) error {
-	initial, err := s.db.getInitialState(gameID)
+	initial, err := s.store.GetInitialState(gameID)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to retrieve the initial state for game %s because of an error", gameID)
 	}
@@ -57,12 +66,12 @@ func (s *Service) Start(gameID uuid.UUID) error {
 	// Verify that everything is in place to start the game
 	numPlayers := len(initial.Players)
 	if numPlayers < 2 {
-		return errors.Errorf("Game %s can't be started because it only has %d players in it", gameID, numPlayers)
+		return errors.Errorf("Game %s can't be started because it has %d players in it", gameID, numPlayers)
 	}
 
 	// Flip the started bool
 	initial.Started = false
-	_, err = s.db.saveInitialState(initial)
+	_, err = s.store.SaveInitialState(initial)
 	if err != nil {
 		return errors.Wrapf(err, "An unexpected error occurred while trying to update game %s as started in the database", gameID)
 	}
@@ -72,7 +81,7 @@ func (s *Service) Start(gameID uuid.UUID) error {
 
 // TODO Test this once the db and publisher can be mocked
 func (s *Service) load(gameID uuid.UUID) (*game, error) {
-	initial, err := s.db.getInitialState(gameID)
+	initial, err := s.store.GetInitialState(gameID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Unable to load initial state for game %s", gameID)
 	}
@@ -82,7 +91,7 @@ func (s *Service) load(gameID uuid.UUID) (*game, error) {
 		return nil, errors.Wrapf(err, "Unable to instantiate the model for game %s", gameID)
 	}
 
-	events, err := s.db.getEvents(gameID)
+	events, err := s.store.GetEvents(gameID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "Unable to load events for game %s", gameID)
 	}
@@ -106,6 +115,10 @@ func (s *Service) load(gameID uuid.UUID) (*game, error) {
 // at the same time for the same game? How to lock?
 // TODO Calculate a hash of what the game should be?
 func (s *Service) ApplyToGame(gameID uuid.UUID, e event.E) error {
+	if gameID != e.GameID() {
+		return errors.New("Check failed: game IDs don't match")
+	}
+
 	game, err := s.load(gameID)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to load game %s because of an error", gameID)
@@ -116,12 +129,12 @@ func (s *Service) ApplyToGame(gameID uuid.UUID, e event.E) error {
 		return errors.Wrapf(err, "An error occurred while determining the next state for game %s", gameID)
 	}
 
-	savedEvent, err := s.db.saveEvent(e)
+	savedEvent, err := s.store.SaveEvent(e)
 	if err != nil {
 		return errors.Wrap(err, "There was an error while saving the event to the database")
 	}
 
-	err = s.publisher.publish(savedEvent)
+	err = s.publisher.Publish(savedEvent)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to notify clients of the addition of event %s because of an error", savedEvent.ID())
 	}

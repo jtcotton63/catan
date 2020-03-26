@@ -29,11 +29,9 @@ func (d *Discarding) Next(gameModel *model.Game, vanilla event.E) (S, *model.Gam
 	}
 
 	playerID := e.PlayerID()
-	player, err := gameModel.GetPlayer(playerID)
-	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Player %s is not associated with game %s", playerID, e.GameID())
-	}
+	player := gameModel.GetActivePlayer()
 
+	var err error
 	player.Resources, err = model.SubtractResourceCardDecks(player.Resources, e.Resources())
 	if err != nil {
 		return nil, nil, errors.Wrapf(err, "Unable to subtract resources from player %s because of an error", playerID)

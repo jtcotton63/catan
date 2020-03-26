@@ -26,8 +26,8 @@ func (m *MovingRobber) Next(gameModel *model.Game, vanilla event.E) (S, *model.G
 	}
 
 	playerID := e.PlayerID()
-	if playerID != gameModel.Active.ID {
-		return nil, nil, errors.Errorf("Player %s cannot move the robber when it is player %s 's turn", playerID, gameModel.Active.ID)
+	if playerID != gameModel.GetActivePlayer().ID {
+		return nil, nil, errors.Errorf("Player %s cannot move the robber when it is player %s 's turn", playerID, gameModel.GetActivePlayer().ID)
 	}
 
 	// TODO Place the robber on the new hex

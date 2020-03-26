@@ -21,7 +21,7 @@ func (r *Rolling) Type() statetype.T {
 
 // TODO Evaluate if someone has won
 func (r *Rolling) Next(model *model.Game, vanilla event.E) (S, *model.Game, error) {
-	e, ok := vanilla.(*event.RolledNumberEvent)
+	e, ok := vanilla.(*event.RolledNumber)
 	if !ok {
 		return nil, nil, errors.Errorf("Expected an event of type %s but got an event of type %s", eventtype.RolledNumber, vanilla.Type())
 	}

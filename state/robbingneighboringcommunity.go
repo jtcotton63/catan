@@ -22,8 +22,8 @@ func (r *RobbingNeighboringCommunity) Next(gameModel *model.Game, vanilla event.
 	}
 
 	activePlayerID := e.PlayerID()
-	if activePlayerID != gameModel.Active.ID {
-		return nil, nil, errors.Errorf("Player %s cannot rob a neighboring community when it is player %s 's turn", activePlayerID, gameModel.Active.ID)
+	if activePlayerID != gameModel.GetActivePlayer().ID {
+		return nil, nil, errors.Errorf("Player %s cannot rob a neighboring community when it is player %s 's turn", activePlayerID, gameModel.GetActivePlayer().ID)
 	}
 
 	// The active player may not have robbed anyone
