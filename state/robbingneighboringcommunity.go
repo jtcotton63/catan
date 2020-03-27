@@ -9,6 +9,11 @@ import (
 	"github.com/pkg/errors"
 )
 
+func NewRobbingNeighboringCommunity() *RobbingNeighboringCommunity {
+	r := RobbingNeighboringCommunity{}
+	return &r
+}
+
 type RobbingNeighboringCommunity struct{}
 
 func (r *RobbingNeighboringCommunity) Type() statetype.T {

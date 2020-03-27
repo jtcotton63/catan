@@ -12,6 +12,11 @@ type ResourceCardDeck struct {
 	Wood  uint
 }
 
+// Note: the zero initializer for uint is 0
+func (r *ResourceCardDeck) Count() uint {
+	return r.Brick + r.Ore + r.Sheep + r.Wheat + r.Wood
+}
+
 // AddResourceCardDecks adds the values in r2 to the values in r1.
 func AddResourceCardDecks(r1 *ResourceCardDeck, r2 *ResourceCardDeck) (*ResourceCardDeck, error) {
 	brick := r1.Brick + r2.Brick

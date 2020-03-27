@@ -32,6 +32,5 @@ func (m *MovingRobber) Next(gameModel *model.Game, vanilla event.E) (S, *model.G
 
 	// TODO Place the robber on the new hex
 
-	// TODO RobbingNeighboringCommunity
-	return nil, nil, nil
+	return NewRobbingNeighboringCommunity(), gameModel, nil
 }

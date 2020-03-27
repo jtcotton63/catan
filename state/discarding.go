@@ -10,7 +10,9 @@ import (
 )
 
 func NewDiscarding() *Discarding {
-	d := Discarding{}
+	d := Discarding{
+		playersWhoHaveDiscarded: make(map[uuid.UUID]bool),
+	}
 	return &d
 }
 
@@ -29,12 +31,16 @@ func (d *Discarding) Next(gameModel *model.Game, vanilla event.E) (S, *model.Gam
 	}
 
 	playerID := e.PlayerID()
-	player := gameModel.GetActivePlayer()
-
-	var err error
-	player.Resources, err = model.SubtractResourceCardDecks(player.Resources, e.Resources())
+	player, err := gameModel.GetPlayer(playerID)
 	if err != nil {
-		return nil, nil, errors.Wrapf(err, "Unable to subtract resources from player %s because of an error", playerID)
+		return nil, nil, errors.Wrapf(err, "Player %s doesn't appear to be associated with game %s", playerID, e.GameID())
+	}
+
+	if player.Resources.Count() > 7 {
+		player.Resources, err = model.SubtractResourceCardDecks(player.Resources, e.Resources())
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "Unable to subtract resources from player %s because of an error", playerID)
+		}
 	}
 
 	// Mark this player as having discarded
@@ -42,8 +48,7 @@ func (d *Discarding) Next(gameModel *model.Game, vanilla event.E) (S, *model.Gam
 
 	// If all players have discarded, go to the next state
 	if len(d.playersWhoHaveDiscarded) == len(gameModel.Players) {
-		// TODO MovingRobber
-		return nil, nil, nil
+		return NewMovingRobber(), gameModel, nil
 	}
 
 	// Not all players have discarded, we need to continue to wait

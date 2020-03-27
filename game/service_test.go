@@ -78,104 +78,233 @@ func newMockedService() (*Service, error) {
 	return mockedService, nil
 }
 
+func applyEventAndVerifyGameState(gameSvc *Service, gameID uuid.UUID, vanilla event.E, expectedStateType statetype.T) (state.S, *model.Game, error) {
+	err := gameSvc.ApplyToGame(gameID, vanilla)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	game, err := gameSvc.load(gameID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Make sure the correct state was produced
+	actualStateType := game.state.Type()
+	if actualStateType != expectedStateType {
+		return nil, nil, errors.Errorf("Expected event to produce a state of type %s but it produced a state of type %s", expectedStateType, actualStateType)
+	}
+
+	// TODO Make sure the correct object is behind the state type
+
+	return game.state, game.model, nil
+}
+
 func TestGameplay(t *testing.T) {
-
-	// players := make([]*model.Player, 3, 3)
-	// players = append(players, p1, p2, p3)
-
-	// // Set up the model
-	// gameModel, err := model.New(players)
-	// if err != nil {
-	// 	t.Error(errors.Wrap(err, "Unexpected error during setup"))
-	// }
 
 	gameSvc, err := newMockedService()
 	if err != nil {
-		t.Error(errors.Wrap(err, "An unexpected error occurred while instantiating a mocked service instance"))
+		t.Fatal(errors.Wrap(err, "An unexpected error occurred while instantiating a mocked service instance"))
 	}
 
 	initial, err := gameSvc.Create()
 	gameID := initial.ID
 	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't create game"))
+		t.Fatal(errors.Wrap(err, "Couldn't create game"))
 	}
 
 	// Set up the players
 	p1, err := model.NewPlayer(uuid.New(), "player1", model.Blue)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Unexpected error during setup"))
+		t.Fatal(errors.Wrap(err, "Unexpected error during setup"))
 	}
 	err = gameSvc.AddPlayer(gameID, p1)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't add p1 to the game"))
+		t.Fatal(errors.Wrap(err, "Couldn't add p1 to the game"))
 	}
 
 	p2, err := model.NewPlayer(uuid.New(), "player2", model.Red)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Unexpected error during setup"))
+		t.Fatal(errors.Wrap(err, "Unexpected error during setup"))
 	}
 	err = gameSvc.AddPlayer(gameID, p2)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't add p2 to the game"))
+		t.Fatal(errors.Wrap(err, "Couldn't add p2 to the game"))
 	}
 
 	p3, err := model.NewPlayer(uuid.New(), "player3", model.Yellow)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Unexpected error during setup"))
+		t.Fatal(errors.Wrap(err, "Unexpected error during setup"))
 	}
 	err = gameSvc.AddPlayer(gameID, p3)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't add p3 to the game"))
+		t.Fatal(errors.Wrap(err, "Couldn't add p3 to the game"))
 	}
 
 	// Start the game
 	err = gameSvc.Start(gameID)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't start the game"))
+		t.Fatal(errors.Wrap(err, "Couldn't start the game"))
 	}
 
 	// p1's turn
 	p1t1e1, err := event.NewRolledNumber(gameID, p1.ID, 6)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't instantiate p1t1e1"))
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p1t1e1"))
 	}
 
-	err = gameSvc.ApplyToGame(gameID, p1t1e1)
+	_, _, err = applyEventAndVerifyGameState(gameSvc, gameID, p1t1e1, statetype.NormalGameplay)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't apply p1t1e1"))
-	}
-
-	game, err := gameSvc.load(gameID)
-	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't get game after p1t1e1"))
-	}
-
-	normalGameplayState, ok := game.state.(*state.NormalGameplay)
-	if !ok {
-		t.Errorf("Expected p1t1e1 to produce a state of type %s but it produced a state of type %s", statetype.NormalGameplay, normalGameplayState.Type())
+		t.Fatal(errors.Wrap(err, "p1t1e1 failed"))
 	}
 
 	p1t1e2, err := event.NewEndedTurn(gameID, p1.ID)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't instantiate p1t1e2"))
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p1t1e2"))
 	}
 
-	err = gameSvc.ApplyToGame(gameID, p1t1e2)
+	_, gameModel, err := applyEventAndVerifyGameState(gameSvc, gameID, p1t1e2, statetype.Rolling)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't apply p1t1e2"))
+		t.Fatal(errors.Wrap(err, "p1t1e2 failed"))
 	}
 
-	game, err = gameSvc.load(gameID)
+	if gameModel.GetActivePlayer().ID != p2.ID {
+		t.Fatalf("Expected p1t1e2 to change the active player to %s but the active player is %s", p2.ID, gameModel.GetActivePlayer().ID)
+	}
+
+	// p2's turn
+	p2t1e1, err := event.NewRolledNumber(gameID, p2.ID, 4)
 	if err != nil {
-		t.Error(errors.Wrap(err, "Couldn't get game after p1t1e2"))
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p2t1e1"))
 	}
 
-	rollingState, ok := game.state.(*state.Rolling)
-	if !ok {
-		t.Errorf("Expected p1t1e2 to produce a state of type %s but it produced a state of type %s", statetype.Rolling, rollingState.Type())
+	_, _, err = applyEventAndVerifyGameState(gameSvc, gameID, p2t1e1, statetype.NormalGameplay)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "p2t1e1 failed"))
 	}
 
-	if game.model.GetActivePlayer().ID != p2.ID {
-		t.Errorf("Expected p1t1e2 to change the active player to %s but the active player is %s", p2.ID, game.model.GetActivePlayer().ID)
+	p2t1e2, err := event.NewEndedTurn(gameID, p2.ID)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p2t1e2"))
+	}
+
+	_, gameModel, err = applyEventAndVerifyGameState(gameSvc, gameID, p2t1e2, statetype.Rolling)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "p2t1e2 failed"))
+	}
+
+	if gameModel.GetActivePlayer().ID != p3.ID {
+		t.Fatalf("Expected p2t1e2 to change the active player to %s but the active player is %s", p3.ID, gameModel.GetActivePlayer().ID)
+	}
+
+	// p3's turn
+	p3t1e1, err := event.NewRolledNumber(gameID, p3.ID, 8)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p3t1e1"))
+	}
+
+	_, _, err = applyEventAndVerifyGameState(gameSvc, gameID, p3t1e1, statetype.NormalGameplay)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "p3t1e1 failed"))
+	}
+
+	p3t1e2, err := event.NewEndedTurn(gameID, p3.ID)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p3t1e2"))
+	}
+
+	_, gameModel, err = applyEventAndVerifyGameState(gameSvc, gameID, p3t1e2, statetype.Rolling)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "p3t1e2 failed"))
+	}
+
+	if gameModel.GetActivePlayer().ID != p1.ID {
+		t.Fatalf("Expected p3t1e2 to change the active player to %s but the active player is %s", p1.ID, gameModel.GetActivePlayer().ID)
+	}
+
+	// p1's turn again
+	// Activating the robber
+	p1t2e1, err := event.NewRolledNumber(gameID, p1.ID, 7)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p1t2e1"))
+	}
+
+	_, _, err = applyEventAndVerifyGameState(gameSvc, gameID, p1t2e1, statetype.DiscardingResources)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "p1t2e1 failed"))
+	}
+
+	p3Discarding, err := event.NewResourcesDiscarded(gameID, p3.ID, &model.ResourceCardDeck{
+		Brick: 0,
+		Ore:   0,
+		Sheep: 0,
+		Wheat: 0,
+		Wood:  0,
+	})
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p3Discarding"))
+	}
+
+	_, _, err = applyEventAndVerifyGameState(gameSvc, gameID, p3Discarding, statetype.DiscardingResources)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "p3Dsicarding failed"))
+	}
+
+	p1Discarding, err := event.NewResourcesDiscarded(gameID, p1.ID, &model.ResourceCardDeck{
+		Brick: 0,
+		Ore:   0,
+		Sheep: 0,
+		Wheat: 0,
+		Wood:  0,
+	})
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p1Discarding"))
+	}
+
+	_, _, err = applyEventAndVerifyGameState(gameSvc, gameID, p1Discarding, statetype.DiscardingResources)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "p1Discarding failed"))
+	}
+
+	p2Discarding, err := event.NewResourcesDiscarded(gameID, p2.ID, &model.ResourceCardDeck{
+		Brick: 0,
+		Ore:   0,
+		Sheep: 0,
+		Wheat: 0,
+		Wood:  0,
+	})
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "p2Discarding failed"))
+	}
+
+	_, _, err = applyEventAndVerifyGameState(gameSvc, gameID, p2Discarding, statetype.MovingRobber)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't apply p2Discarding"))
+	}
+
+	p1PlacingRobber, err := event.NewPlacedRobber(gameID, p1.ID)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p1PlacingRobber"))
+	}
+
+	_, _, err = applyEventAndVerifyGameState(gameSvc, gameID, p1PlacingRobber, statetype.RobbingNeighboringCommunity)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't apply p1PlacingRobber"))
+	}
+
+	p1Robbing, err := event.NewRobbedNeighboringCommunity(gameID, p1.ID, p2.ID, &model.ResourceCardDeck{
+		Brick: 0,
+		Ore:   0,
+		Sheep: 0,
+		Wheat: 0,
+		Wood:  0,
+	})
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't instantiate p1Robbing"))
+	}
+
+	_, _, err = applyEventAndVerifyGameState(gameSvc, gameID, p1Robbing, statetype.NormalGameplay)
+	if err != nil {
+		t.Fatal(errors.Wrap(err, "Couldn't apply p1Robbing"))
 	}
 }
