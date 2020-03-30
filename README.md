@@ -36,7 +36,21 @@ With these principles in mind, I've arrived at the following overall design:
 
 ## Utilizing the state library
 
-The server functionality doesn't exist as of yet, but the state machine functionality does. The following example shows how to use it:
+The server functionality doesn't exist as of yet, but the state machine functionality does. This section describes how to use it.
+
+### Prerequisites
+
+In order to use the state machine, you must have go version 1.14 or higher installed on your machine.
+
+### Usage
+
+First download the `game` package:
+
+```
+$ go get github.com/jtcotton63/catan/game
+```
+
+Once this is finished, you can utilize it like so:
 
 ```
 TODO
