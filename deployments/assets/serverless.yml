@@ -1,0 +1,36 @@
+service: api
+
+frameworkVersion: '>=1.28.0 <2.0.0'
+
+package:
+  exclude:
+    - ./**
+  include:
+    - ./bin/**
+
+provider:
+  name: aws
+  memorySize: 128
+  region: us-east-1
+  runtime: go1.x
+  versionFuncions: false
+
+plugins:
+  - serverless-localstack
+
+custom:
+  localstack:
+    debug: true
+    stages:
+      - local
+    autostart: false
+    host: http://aws
+
+
+functions:
+  api-ping-get:
+    handler: bin/api-ping-get
+    events:
+      - http:
+          path: ping
+          method: get

@@ -1,0 +1,24 @@
+version: "3.5"
+services:
+    data:
+        image: postgres:12.2
+        ports:
+            - "5432:5432"
+        restart: always
+        environment:
+            POSTGRES_PASSWORD: password
+    aws:
+        image: localstack/localstack
+        ports:
+            - "4567-4599:4567-4599"
+            - "8081:8081"
+        # Example of where to find service names: https://github.com/localstack/localstack/blob/b7c64ee163138e10a40cd43cb43fe09607c92e47/localstack/services/apigateway/apigateway_starter.py#L54
+        environment: 
+            - SERVICES=apigateway,cloudformation,cloudwatch,dynamodb,iam,lambda,s3,sns,sqs,sts
+            - DEBUG=1
+            - PORT_WEB_UI=8081
+    build:
+        build: .
+        depends_on:
+            - data
+            - aws
